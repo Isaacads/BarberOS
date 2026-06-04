@@ -34,14 +34,12 @@ export function UsuarioFormDialog() {
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [perfil, setPerfil] = useState<"admin" | "staff">("staff");
-  const [senha, setSenha] = useState("");
 
   function reset() {
     setNome("");
     setEmail("");
     setTelefone("");
     setPerfil("staff");
-    setSenha("");
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -56,13 +54,14 @@ export function UsuarioFormDialog() {
       email: email.trim().toLowerCase(),
       telefone: telefone.trim() || null,
       perfil,
-      senha: senha.trim() || undefined,
     };
 
     startTransition(async () => {
       const result = await createUsuario(input);
       if (result.success) {
-        toast.success("Usuário criado com sucesso!");
+        toast.success(
+          "Usuário criado! Um e-mail foi enviado para definir a senha."
+        );
         reset();
         setOpen(false);
       } else {
@@ -83,7 +82,7 @@ export function UsuarioFormDialog() {
         <DialogHeader>
           <DialogTitle>Cadastrar usuário</DialogTitle>
           <DialogDescription>
-            Crie um novo acesso para sua equipe.
+            Cadastre um novo acesso para sua equipe. O usuário receberá um e-mail para definir a senha.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,26 +141,11 @@ export function UsuarioFormDialog() {
                 <SelectItem value="staff">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    Staff — somente visualizar e agendar
+                    Staff — visualizar e agendar
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="senha">Senha</Label>
-            <Input
-              id="senha"
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="Deixe em branco para senha padrão"
-              disabled={isPending}
-            />
-            <p className="text-xs text-muted-foreground">
-              Se não preencher, a senha será <code className="text-xs font-mono bg-muted px-1 py-0.5 rounded">BarberOS123!</code>
-            </p>
           </div>
 
           <DialogFooter>

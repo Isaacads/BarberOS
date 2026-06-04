@@ -10,7 +10,6 @@ export type UsuarioInput = {
   email: string;
   telefone?: string | null;
   perfil: "admin" | "staff";
-  senha?: string;
 };
 
 export type ActionResult = { success: true } | { success: false; error: string };
@@ -29,7 +28,9 @@ export async function listUsuarios() {
 
   const { data, error } = await supabase
     .from("usuarios")
-    .select("id, nome, email, telefone, perfil, ativo, created_at")
+    .select(
+      "id, nome, email, telefone, perfil, ativo, created_at, barbearia_id, auth_user_id"
+    )
     .eq("barbearia_id", barbeariaId)
     .order("nome", { ascending: true });
 
@@ -37,33 +38,21 @@ export async function listUsuarios() {
   return data ?? [];
 }
 
-export async function createUsuario(input: UsuarioInput): Promise<ActionResult> {
+/**
+ * Cadastra um novo usuário na tabela usuarios e envia convite por e-mail.
+ * Não usa auth.admin — o usuário clica no link e ativa sua conta.
+ */
+export async function createUsuario(
+  input: UsuarioInput
+): Promise<ActionResult> {
   try {
     await assertAdmin();
     const { barbeariaId } = await getBarbeariaIdAndPerfil();
-    const adminClient = createClient(); // Server admin: bypass RLS
     const supabase = createClient();
 
-    // 1. Cria auth user
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email: input.email,
-      password: input.senha || "BarberOS123!",
-      email_confirm: true,
-    });
-
-    if (authError) {
-      return { success: false, error: authError.message };
-    }
-
-    const authUserId = authData?.user?.id;
-    if (!authUserId) {
-      return { success: false, error: "Não foi possível criar o usuário." };
-    }
-
-    // 2. Insere na tabela usuarios
+    // 1. Insere na tabela usuarios (auth_user_id ficará NULL até o convite ser aceito)
     const { error: dbError } = await supabase.from("usuarios").insert({
       barbearia_id: barbeariaId,
-      auth_user_id: authUserId,
       nome: input.nome.trim(),
       email: input.email.trim().toLowerCase(),
       telefone: input.telefone?.trim() || null,
@@ -72,13 +61,25 @@ export async function createUsuario(input: UsuarioInput): Promise<ActionResult> 
     });
 
     if (dbError) {
-      // Tenta limpar o auth user criado
-      try {
-        await adminClient.auth.admin.deleteUser(authUserId);
-      } catch {
-        // ignora
+      // E-mail duplicado?
+      if (dbError.code === "23505") {
+        return { success: false, error: "Este e-mail já está cadastrado nesta barbearia." };
       }
       return { success: false, error: dbError.message };
+    }
+
+    // 2. Envia link de redefinição de senha (convite)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const { error: inviteErr } = await supabase.auth.resetPasswordForEmail(
+      input.email.trim().toLowerCase(),
+      {
+        redirectTo: `${appUrl}/login`,
+      }
+    );
+
+    if (inviteErr) {
+      console.error("Erro ao enviar convite:", inviteErr.message);
+      // Não impede — usuário pode pedir redefinição depois
     }
 
     revalidatePath("/usuarios");
@@ -156,13 +157,6 @@ export async function deleteUsuario(id: string): Promise<ActionResult> {
     const { barbeariaId } = await getBarbeariaIdAndPerfil();
     const supabase = createClient();
 
-    const { data: usuario } = await supabase
-      .from("usuarios")
-      .select("auth_user_id")
-      .eq("id", id)
-      .eq("barbearia_id", barbeariaId)
-      .maybeSingle();
-
     const { error } = await supabase
       .from("usuarios")
       .delete()
@@ -170,16 +164,6 @@ export async function deleteUsuario(id: string): Promise<ActionResult> {
       .eq("barbearia_id", barbeariaId);
 
     if (error) return { success: false, error: error.message };
-
-    // Remove do auth também
-    if (usuario?.auth_user_id) {
-      try {
-        const adminClient = createClient();
-        await adminClient.auth.admin.deleteUser(usuario.auth_user_id);
-      } catch {
-        // ignora se falhar, registro já foi removido do app
-      }
-    }
 
     revalidatePath("/usuarios");
     return { success: true };

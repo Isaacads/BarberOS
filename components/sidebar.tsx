@@ -44,6 +44,7 @@ const adminOnlyLinks = [
 
 interface SidebarProps {
   nomeBarbearia: string;
+  slogan: string | null;
   logoUrl: string | null;
   userEmail: string;
   userNome: string;
@@ -148,30 +149,39 @@ function UserInfo({
 
 function BrandHeader({
   nomeBarbearia,
+  slogan,
   logoUrl,
 }: {
   nomeBarbearia: string;
+  slogan: string | null;
   logoUrl: string | null;
 }) {
   if (logoUrl) {
     return (
       <div className="flex items-center gap-3">
-        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border">
           <Image
             src={logoUrl}
             alt={nomeBarbearia}
             fill
             className="object-cover"
-            sizes="32px"
+            sizes="40px"
           />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold truncate" title={nomeBarbearia}>
+          <p className="text-sm font-semibold truncate leading-tight" title={nomeBarbearia}>
             {nomeBarbearia}
           </p>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-            BarberOS
-          </p>
+          {slogan && (
+            <p className="text-xs text-muted-foreground truncate" title={slogan}>
+              {slogan}
+            </p>
+          )}
+          {!slogan && (
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              BarberOS
+            </p>
+          )}
         </div>
       </div>
     );
@@ -186,12 +196,18 @@ function BrandHeader({
       >
         {nomeBarbearia}
       </p>
+      {slogan && (
+        <p className="text-xs text-muted-foreground truncate italic" title={slogan}>
+          {slogan}
+        </p>
+      )}
     </div>
   );
 }
 
 export function Sidebar({
   nomeBarbearia,
+  slogan,
   logoUrl,
   userEmail,
   userNome,
@@ -217,7 +233,7 @@ export function Sidebar({
       {/* Desktop sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-r lg:bg-card">
         <div className="flex flex-col gap-1 border-b px-6 py-5">
-          <BrandHeader nomeBarbearia={nomeBarbearia} logoUrl={logoUrl} />
+          <BrandHeader nomeBarbearia={nomeBarbearia} slogan={slogan} logoUrl={logoUrl} />
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
@@ -261,7 +277,7 @@ export function Sidebar({
                   <SheetTitle className="text-xl font-bold tracking-tight">
                     {logoUrl ? (
                       <div className="flex items-center gap-3">
-                        <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg">
+                        <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border">
                           <Image
                             src={logoUrl}
                             alt={nomeBarbearia}
@@ -270,7 +286,12 @@ export function Sidebar({
                             sizes="28px"
                           />
                         </div>
-                        <span className="text-sm font-semibold">{nomeBarbearia}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-semibold block leading-tight">{nomeBarbearia}</span>
+                          {slogan && (
+                            <span className="text-[10px] text-muted-foreground block truncate">{slogan}</span>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <span className="flex items-center gap-2">✂️ BarberOS</span>

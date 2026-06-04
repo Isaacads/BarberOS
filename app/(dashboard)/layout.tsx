@@ -8,6 +8,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   let nomeBarbearia = "Minha Barbearia";
+  let slogan: string | null = null;
   let logoUrl: string | null = null;
   let userEmail = "";
   let userNome = "";
@@ -55,23 +56,25 @@ export default async function DashboardLayout({
     if (!barbeariaId) {
       const { data: barbearia } = await supabase
         .from("barbearias")
-        .select("id, nome, logo_url")
+        .select("id, nome, slogan, logo_url")
         .eq("user_id", authUser.id)
         .maybeSingle();
 
       if (barbearia) {
         barbeariaId = barbearia.id;
         nomeBarbearia = barbearia.nome;
+        slogan = barbearia.slogan;
         logoUrl = barbearia.logo_url ?? null;
         userPerfil = "admin";
       }
     } else {
       const { data: barbearia } = await supabase
         .from("barbearias")
-        .select("nome, logo_url")
+        .select("nome, slogan, logo_url")
         .eq("id", barbeariaId)
         .maybeSingle();
       nomeBarbearia = barbearia?.nome ?? "Minha Barbearia";
+      slogan = barbearia?.slogan ?? null;
       logoUrl = barbearia?.logo_url ?? null;
     }
 
@@ -103,6 +106,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen bg-muted/30">
       <Sidebar
         nomeBarbearia={nomeBarbearia}
+        slogan={slogan}
         logoUrl={logoUrl}
         userEmail={userEmail}
         userNome={userNome}

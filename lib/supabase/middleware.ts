@@ -28,6 +28,16 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
+  try {
+    url;
+    key;
+  } catch {
+    const redirect = request.nextUrl.clone();
+    redirect.pathname = "/login";
+    redirect.searchParams.set("error", "missing_env");
+    return NextResponse.redirect(redirect);
+  }
+
   const supabase = createServerClient(url, key, {
     cookies: {
       get(name: string) {
@@ -70,26 +80,46 @@ export async function updateSession(request: NextRequest) {
 
   // Verifica trial/assinatura para rotas protegidas do dashboard
   if (user && !isPublicRoute) {
-    // 1. Resolve barbearia via tabela usuarios (novo modelo)
-    const { data: usuario } = await supabase
-      .from("usuarios")
-      .select("barbearia_id, perfil")
-      .eq("auth_user_id", user.id)
-      .eq("ativo", true)
-      .maybeSingle();
+    let barbeariaId: string | undefined;
+    let perfil: string = "admin";
 
-    let barbeariaId: string | undefined = usuario?.barbearia_id;
-    let perfil: string = usuario?.perfil ?? "admin";
+    try {
+      // 1. Resolve barbearia via tabela usuarios (novo modelo)
+      // Envolve em try/catch: se tabela não existe, não quebra
+      try {
+        const { data: usuario } = await supabase
+          .from("usuarios")
+          .select("barbearia_id, perfil")
+          .eq("auth_user_id", user.id)
+          .eq("ativo", true)
+          .maybeSingle();
 
-    // 2. Fallback legacy: busca via barbearias.user_id (dono único)
-    if (!barbeariaId) {
-      const { data: barbearia } = await supabase
-        .from("barbearias")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      barbeariaId = barbearia?.id;
-      perfil = "admin";
+        if (usuario) {
+          barbeariaId = usuario.barbearia_id;
+          perfil = usuario.perfil ?? "staff";
+        }
+      } catch {
+        /* tabela usuarios pode nao existir ainda */
+      }
+
+      // 2. Fallback legacy: busca via barbearias.user_id (dono único)
+      if (!barbeariaId) {
+        try {
+          const { data: barbearia } = await supabase
+            .from("barbearias")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (barbearia) {
+            barbeariaId = barbearia.id;
+            perfil = "admin";
+          }
+        } catch {
+          /* ignorar */
+        }
+      }
+    } catch {
+      /* erro genérico ao resolver barbearia */
     }
 
     // Se não tem barbearia cadastrada, manda para configurações criar
@@ -106,34 +136,40 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    const { data: assinatura } = await supabase
-      .from("assinaturas")
-      .select("id, status, trial_fim, pagamento_fim")
-      .eq("barbearia_id", barbeariaId)
-      .maybeSingle();
+    // Verifica assinatura (silenciosamente, não quebra se tabela não existe)
+    try {
+      const { data: assinatura } = await supabase
+        .from("assinaturas")
+        .select("id, status, trial_fim, pagamento_fim")
+        .eq("barbearia_id", barbeariaId)
+        .maybeSingle();
 
-    const agora = new Date();
+      const agora = new Date();
 
-    // Se não tem assinatura, cria trial automaticamente
-    if (!assinatura) {
-      const trialFim = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      await supabase.from("assinaturas").insert({
-        barbearia_id: barbeariaId,
-        plano: "trial",
-        status: "ativo",
-        trial_inicio: agora.toISOString(),
-        trial_fim: trialFim.toISOString(),
-      });
+      // Se não tem assinatura, cria trial automaticamente
+      if (!assinatura) {
+        const trialFim = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await supabase.from("assinaturas").insert({
+          barbearia_id: barbeariaId,
+          plano: "trial",
+          status: "ativo",
+          trial_inicio: agora.toISOString(),
+          trial_fim: trialFim.toISOString(),
+        });
+        return supabaseResponse;
+      }
+
+      const trialValido = assinatura?.trial_fim && new Date(assinatura.trial_fim) > agora;
+      const pagamentoValido = assinatura?.pagamento_fim && new Date(assinatura.pagamento_fim) > agora;
+
+      if (!trialValido && !pagamentoValido) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/pagamento";
+        return NextResponse.redirect(url);
+      }
+    } catch {
+      // Se não conseguir checar assinatura, libera o acesso (evita lock-out)
       return supabaseResponse;
-    }
-
-    const trialValido = assinatura?.trial_fim && new Date(assinatura.trial_fim) > agora;
-    const pagamentoValido = assinatura?.pagamento_fim && new Date(assinatura.pagamento_fim) > agora;
-
-    if (!trialValido && !pagamentoValido) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/pagamento";
-      return NextResponse.redirect(url);
     }
   }
 

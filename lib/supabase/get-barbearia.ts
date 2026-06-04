@@ -18,19 +18,20 @@ export async function getBarbeariaId(): Promise<string> {
     throw new Error("Usuário não autenticado");
   }
 
-  // 1. Novo modelo: barbearia via tabela usuarios
-  const { data: usuario, error: userErr } = await supabase
-    .from("usuarios")
-    .select("barbearia_id")
-    .eq("auth_user_id", user.id)
-    .eq("ativo", true)
-    .maybeSingle();
-
-  if (!userErr && usuario) {
-    return usuario.barbearia_id;
+  // 1. Novo modelo: barbearia via tabela usuarios (silenciosamente skipa se tabela nao existe)
+  try {
+    const { data: usuario } = await supabase
+      .from("usuarios")
+      .select("barbearia_id")
+      .eq("auth_user_id", user.id)
+      .eq("ativo", true)
+      .maybeSingle();
+    if (usuario) return usuario.barbearia_id;
+  } catch {
+    /* tabela pode nao existir */
   }
 
-  // 2. Fallback legacy: backwards compat com barbearias.user_id
+  // 2. Fallback legacy
   const { data, error } = await supabase
     .from("barbearias")
     .select("id")
@@ -43,10 +44,6 @@ export async function getBarbeariaId(): Promise<string> {
   return data.id;
 }
 
-/**
- * Retorna barbearia_id, perfil e nome do usuário logado.
- * Fallback legacy: se não está na tabela usuarios, busca via barbearias.user_id e assume admin.
- */
 export async function getBarbeariaIdAndPerfil(): Promise<{
   barbeariaId: string;
   perfil: "admin" | "staff";
@@ -62,23 +59,26 @@ export async function getBarbeariaIdAndPerfil(): Promise<{
     throw new Error("Usuário não autenticado");
   }
 
-  // Novo modelo
-  const { data: usuario } = await supabase
-    .from("usuarios")
-    .select("barbearia_id, perfil, nome")
-    .eq("auth_user_id", user.id)
-    .eq("ativo", true)
-    .maybeSingle();
-
-  if (usuario) {
-    return {
-      barbeariaId: usuario.barbearia_id,
-      perfil: usuario.perfil as "admin" | "staff",
-      nome: usuario.nome,
-    };
+  // 1. Novo modelo
+  try {
+    const { data: usuario } = await supabase
+      .from("usuarios")
+      .select("barbearia_id, perfil, nome")
+      .eq("auth_user_id", user.id)
+      .eq("ativo", true)
+      .maybeSingle();
+    if (usuario) {
+      return {
+        barbeariaId: usuario.barbearia_id,
+        perfil: (usuario.perfil as "admin" | "staff") ?? "staff",
+        nome: usuario.nome,
+      };
+    }
+  } catch {
+    /* tabela pode nao existir */
   }
 
-  // Fallback legacy
+  // 2. Fallback legacy
   const { data: barbearia } = await supabase
     .from("barbearias")
     .select("id")
@@ -94,37 +94,4 @@ export async function getBarbeariaIdAndPerfil(): Promise<{
   }
 
   throw new Error("Barbearia não encontrada para este usuário");
-}
-export async function getUsuarioLogado(): Promise<{
-  barbeariaId: string;
-  perfil: "admin" | "staff";
-  nome: string;
-  email: string;
-}> {
-  const supabase = createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Usuário não autenticado");
-  }
-
-  const { data, error } = await supabase
-    .from("usuarios")
-    .select("barbearia_id, perfil, nome, email")
-    .eq("auth_user_id", user.id)
-    .eq("ativo", true)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) throw new Error("Usuário não cadastrado no sistema.");
-
-  return {
-    barbeariaId: data.barbearia_id,
-    perfil: data.perfil,
-    nome: data.nome,
-    email: data.email,
-  };
 }

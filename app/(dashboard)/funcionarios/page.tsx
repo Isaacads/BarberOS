@@ -12,11 +12,24 @@ export default async function FuncionariosPage() {
     funcionarios = MOCK_FUNCIONARIOS as Funcionario[];
   } else {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("funcionarios")
-      .select("*")
-      .order("nome", { ascending: true });
-    funcionarios = (data as Funcionario[]) ?? [];
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { data: barbearia } = await supabase
+      .from("barbearias")
+      .select("id")
+      .eq("user_id", user!.id)
+      .maybeSingle();
+
+    if (barbearia?.id) {
+      const { data } = await supabase
+        .from("funcionarios")
+        .select("*")
+        .eq("barbearia_id", barbearia.id)
+        .order("nome", { ascending: true });
+      funcionarios = (data as Funcionario[]) ?? [];
+    }
   }
 
   return (

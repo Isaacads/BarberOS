@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { InputMoeda } from "@/components/ui/input-moeda";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -132,16 +133,10 @@ export function ServicoFormDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="preco">Preço (R$)</Label>
-              <Input
+              <InputMoeda
                 id="preco"
-                type="number"
-                min={0}
-                step={0.01}
-                required
                 value={form.preco}
-                onChange={(e) =>
-                  setForm({ ...form, preco: parseFloat(e.target.value) || 0 })
-                }
+                onChange={(v) => setForm({ ...form, preco: v })}
                 disabled={isPending}
               />
             </div>

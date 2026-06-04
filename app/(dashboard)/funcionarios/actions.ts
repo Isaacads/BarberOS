@@ -106,11 +106,26 @@ export async function updateFuncionario(
   }
 
   try {
+    const barbeariaId = await getBarbeariaId();
     const supabase = createClient();
+
+    // Verifica ownership
+    const { data: existing } = await supabase
+      .from("funcionarios")
+      .select("id")
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .maybeSingle();
+
+    if (!existing) {
+      return { success: false, error: "Funcionário não encontrado ou sem permissão." };
+    }
+
     const { error } = await supabase
       .from("funcionarios")
       .update(parsed.data)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId);
 
     if (error) return { success: false, error: error.message };
 
@@ -134,8 +149,26 @@ export async function deleteFuncionario(id: string): Promise<ActionResult> {
   }
 
   try {
+    const barbeariaId = await getBarbeariaId();
     const supabase = createClient();
-    const { error } = await supabase.from("funcionarios").delete().eq("id", id);
+
+    // Verifica ownership
+    const { data: existing } = await supabase
+      .from("funcionarios")
+      .select("id")
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .maybeSingle();
+
+    if (!existing) {
+      return { success: false, error: "Funcionário não encontrado ou sem permissão." };
+    }
+
+    const { error } = await supabase
+      .from("funcionarios")
+      .delete()
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId);
 
     if (error) return { success: false, error: error.message };
 

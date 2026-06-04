@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { registrarBarbearia } from "@/app/(auth)/registro/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,6 @@ import {
 
 export default function RegistroPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [nomeBarbearia, setNomeBarbearia] = useState("");
   const [email, setEmail] = useState("");
@@ -35,41 +34,19 @@ export default function RegistroPage() {
     setError(null);
     setSuccess(null);
 
-    // 1. Cria o usuário no Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const result = await registrarBarbearia({
+      nomeBarbearia,
       email,
       password,
-      options: {
-        data: { nome_barbearia: nomeBarbearia },
-      },
     });
 
-    if (authError) {
-      setError(authError.message);
+    if (!result.success) {
+      setError(result.error);
       setLoading(false);
       return;
     }
 
-    if (!authData.user) {
-      setError("Não foi possível criar a conta. Tente novamente.");
-      setLoading(false);
-      return;
-    }
-
-    // 2. Salva a barbearia vinculada ao user_id
-    const { error: dbError } = await supabase.from("barbearias").insert({
-      user_id: authData.user.id,
-      nome: nomeBarbearia,
-    });
-
-    if (dbError) {
-      setError(`Conta criada, mas falhou ao salvar a barbearia: ${dbError.message}`);
-      setLoading(false);
-      return;
-    }
-
-    // 3. Se a sessão já estiver ativa, redireciona; senão, mostra mensagem para confirmar e-mail
-    if (authData.session) {
+    if (result.sessionActive) {
       router.push("/dashboard");
       router.refresh();
     } else {

@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { InputTelefone } from "@/components/ui/input-telefone";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -107,12 +108,10 @@ export function ClienteFormDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone</Label>
-              <Input
+              <InputTelefone
                 id="telefone"
-                type="tel"
-                placeholder="(11) 99999-9999"
                 value={form.telefone ?? ""}
-                onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                onChange={(v) => setForm({ ...form, telefone: v })}
                 disabled={isPending}
               />
             </div>

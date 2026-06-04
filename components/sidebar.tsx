@@ -9,9 +9,12 @@ import {
   Users,
   UserCog,
   Scissors,
+  Settings,
+  Shield,
   LogOut,
   Menu,
-  X,
+  User,
+  Crown,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
@@ -23,25 +26,41 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-  SheetClose,
 } from "@/components/ui/sheet";
 
-const links = [
+const allLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agendamentos", label: "Agendamentos", icon: Calendar },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/funcionarios", label: "Funcionários", icon: UserCog },
   { href: "/servicos", label: "Serviços", icon: Scissors },
+  { href: "/configuracoes", label: "Configurações", icon: Settings },
+];
+
+const adminOnlyLinks = [
+  { href: "/usuarios", label: "Usuários", icon: Shield },
 ];
 
 interface SidebarProps {
   nomeBarbearia: string;
+  userEmail: string;
+  userNome: string;
+  userPerfil: "admin" | "staff";
+  planoLabel: string;
+  planoExpirado: boolean;
+}
+
+function buildLinks(perfil: "admin" | "staff") {
+  if (perfil === "admin") return [...allLinks, ...adminOnlyLinks];
+  return allLinks;
 }
 
 function NavLinks({
+  links,
   pathname,
   onNavigate,
 }: {
+  links: { href: string; label: string; icon: React.ElementType }[];
   pathname: string;
   onNavigate?: () => void;
 }) {
@@ -74,7 +93,65 @@ function NavLinks({
   );
 }
 
-export function Sidebar({ nomeBarbearia }: SidebarProps) {
+function UserInfo({
+  userNome,
+  userEmail,
+  userPerfil,
+  planoLabel,
+  planoExpirado,
+}: {
+  userNome: string;
+  userEmail: string;
+  userPerfil: "admin" | "staff";
+  planoLabel: string;
+  planoExpirado: boolean;
+}) {
+  return (
+    <div className="space-y-2 px-3 py-2">
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+          <User className="h-3.5 w-3.5 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <span className="block truncate text-sm font-medium" title={userNome || userEmail}>
+            {userNome || "Usuário"}
+          </span>
+          <span className="block truncate text-xs text-muted-foreground" title={userEmail}>
+            {userEmail}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Crown className={cn("h-3.5 w-3.5", planoExpirado ? "text-destructive" : "text-amber-500")} />
+        <span
+          className={cn(
+            "text-xs font-medium",
+            planoExpirado ? "text-destructive" : "text-amber-600"
+          )}
+        >
+          {planoLabel}
+        </span>
+        <span className={cn(
+          "ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+          userPerfil === "admin"
+            ? "bg-primary/10 text-primary"
+            : "bg-muted text-muted-foreground"
+        )}>
+          {userPerfil}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function Sidebar({
+  nomeBarbearia,
+  userEmail,
+  userNome,
+  userPerfil,
+  planoLabel,
+  planoExpirado,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -85,6 +162,8 @@ export function Sidebar({ nomeBarbearia }: SidebarProps) {
     router.push("/login");
     router.refresh();
   }
+
+  const links = buildLinks(userPerfil);
 
   return (
     <>
@@ -101,18 +180,27 @@ export function Sidebar({ nomeBarbearia }: SidebarProps) {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          <NavLinks pathname={pathname} />
+          <NavLinks links={links} pathname={pathname} />
         </nav>
 
-        <div className="border-t p-3">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 text-muted-foreground"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-            Sair
-          </Button>
+        <div className="border-t">
+          <UserInfo
+            userNome={userNome}
+            userEmail={userEmail}
+            userPerfil={userPerfil}
+            planoLabel={planoLabel}
+            planoExpirado={planoExpirado}
+          />
+          <div className="p-3 pt-0">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3 text-muted-foreground"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
+          </div>
         </div>
       </aside>
 
@@ -138,22 +226,32 @@ export function Sidebar({ nomeBarbearia }: SidebarProps) {
                 </SheetHeader>
                 <nav className="flex-1 space-y-1 px-3 py-4">
                   <NavLinks
+                    links={links}
                     pathname={pathname}
                     onNavigate={() => setMobileOpen(false)}
                   />
                 </nav>
-                <div className="border-t p-3">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-3 text-muted-foreground"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      handleLogout();
-                    }}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sair
-                  </Button>
+                <div className="border-t">
+                  <UserInfo
+                    userNome={userNome}
+                    userEmail={userEmail}
+                    userPerfil={userPerfil}
+                    planoLabel={planoLabel}
+                    planoExpirado={planoExpirado}
+                  />
+                  <div className="p-3 pt-0">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start gap-3 text-muted-foreground"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        handleLogout();
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sair
+                    </Button>
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>

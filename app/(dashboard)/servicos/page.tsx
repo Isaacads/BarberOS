@@ -12,11 +12,24 @@ export default async function ServicosPage() {
     servicos = MOCK_SERVICOS as Servico[];
   } else {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("servicos")
-      .select("*")
-      .order("nome", { ascending: true });
-    servicos = (data as Servico[]) ?? [];
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { data: barbearia } = await supabase
+      .from("barbearias")
+      .select("id")
+      .eq("user_id", user!.id)
+      .maybeSingle();
+
+    if (barbearia?.id) {
+      const { data } = await supabase
+        .from("servicos")
+        .select("*")
+        .eq("barbearia_id", barbearia.id)
+        .order("nome", { ascending: true });
+      servicos = (data as Servico[]) ?? [];
+    }
   }
 
   return (

@@ -12,11 +12,24 @@ export default async function ClientesPage() {
     clientes = MOCK_CLIENTES as Cliente[];
   } else {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("clientes")
-      .select("*")
-      .order("nome", { ascending: true });
-    clientes = (data as Cliente[]) ?? [];
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { data: barbearia } = await supabase
+      .from("barbearias")
+      .select("id")
+      .eq("user_id", user!.id)
+      .maybeSingle();
+
+    if (barbearia?.id) {
+      const { data } = await supabase
+        .from("clientes")
+        .select("*")
+        .eq("barbearia_id", barbearia.id)
+        .order("nome", { ascending: true });
+      clientes = (data as Cliente[]) ?? [];
+    }
   }
 
   return (

@@ -15,7 +15,7 @@ import {
 } from "@/app/(dashboard)/agendamentos/actions";
 
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -121,7 +121,8 @@ export function AgendamentoFormDialog({
     getHorariosDisponiveis(
       funcionarioId,
       dataStr,
-      servicoSelecionado.duracao_minutos
+      servicoSelecionado.duracao_minutos,
+      agendamento?.id
     ).then((result) => {
       setLoadingSlots(false);
       if (result.success) {
@@ -278,11 +279,10 @@ export function AgendamentoFormDialog({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  initialFocus
+                <DatePicker
+                  value={date}
+                  onChange={(newDate) => setDate(newDate)}
+                  disabled={isPending}
                 />
               </PopoverContent>
             </Popover>

@@ -84,11 +84,26 @@ export async function updateCliente(
   }
 
   try {
+    const barbeariaId = await getBarbeariaId();
     const supabase = createClient();
+
+    // Verifica se o cliente pertence à barbearia do usuário antes de atualizar
+    const { data: existing } = await supabase
+      .from("clientes")
+      .select("id")
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .maybeSingle();
+
+    if (!existing) {
+      return { success: false, error: "Cliente não encontrado ou sem permissão." };
+    }
+
     const { error } = await supabase
       .from("clientes")
       .update(parsed.data)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId);
 
     if (error) return { success: false, error: error.message };
 
@@ -111,8 +126,26 @@ export async function deleteCliente(id: string): Promise<ActionResult> {
   }
 
   try {
+    const barbeariaId = await getBarbeariaId();
     const supabase = createClient();
-    const { error } = await supabase.from("clientes").delete().eq("id", id);
+
+    // Verifica se o cliente pertence à barbearia do usuário antes de excluir
+    const { data: existing } = await supabase
+      .from("clientes")
+      .select("id")
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .maybeSingle();
+
+    if (!existing) {
+      return { success: false, error: "Cliente não encontrado ou sem permissão." };
+    }
+
+    const { error } = await supabase
+      .from("clientes")
+      .delete()
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId);
 
     if (error) return { success: false, error: error.message };
 

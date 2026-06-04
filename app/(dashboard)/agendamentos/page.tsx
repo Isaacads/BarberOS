@@ -25,28 +25,61 @@ export default async function AgendamentosPage({ searchParams }: PageProps) {
   const fimDia = new Date(dataSelecionada);
   fimDia.setHours(23, 59, 59, 999);
 
-  // Busca dados em paralelo
-  const [
-    { data: agendamentosRaw },
-    { data: clientesRaw },
-    { data: funcionariosRaw },
-    { data: servicosRaw },
-  ] = await Promise.all([
-    supabase
-      .from("agendamentos")
-      .select("*")
-      .gte("data_hora", inicioDia.toISOString())
-      .lte("data_hora", fimDia.toISOString())
-      .order("data_hora", { ascending: true }),
-    supabase.from("clientes").select("*").order("nome"),
-    supabase.from("funcionarios").select("*").order("nome"),
-    supabase.from("servicos").select("*").order("nome"),
-  ]);
+  // Resolve a barbearia do usuário autenticado
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const agendamentos = (agendamentosRaw as Agendamento[]) ?? [];
-  const clientes = (clientesRaw as Cliente[]) ?? [];
-  const funcionarios = (funcionariosRaw as Funcionario[]) ?? [];
-  const servicos = (servicosRaw as Servico[]) ?? [];
+  const { data: barbearia } = await supabase
+    .from("barbearias")
+    .select("id")
+    .eq("user_id", user!.id)
+    .maybeSingle();
+
+  const barbeariaId = barbearia?.id;
+
+  let agendamentos: Agendamento[] = [];
+  let clientes: Cliente[] = [];
+  let funcionarios: Funcionario[] = [];
+  let servicos: Servico[] = [];
+
+  if (barbeariaId) {
+    // Busca dados em paralelo
+    const [
+      { data: agendamentosRaw },
+      { data: clientesRaw },
+      { data: funcionariosRaw },
+      { data: servicosRaw },
+    ] = await Promise.all([
+      supabase
+        .from("agendamentos")
+        .select("*")
+        .eq("barbearia_id", barbeariaId)
+        .gte("data_hora", inicioDia.toISOString())
+        .lte("data_hora", fimDia.toISOString())
+        .order("data_hora", { ascending: true }),
+      supabase
+        .from("clientes")
+        .select("*")
+        .eq("barbearia_id", barbeariaId)
+        .order("nome"),
+      supabase
+        .from("funcionarios")
+        .select("*")
+        .eq("barbearia_id", barbeariaId)
+        .order("nome"),
+      supabase
+        .from("servicos")
+        .select("*")
+        .eq("barbearia_id", barbeariaId)
+        .order("nome"),
+    ]);
+
+    agendamentos = (agendamentosRaw as Agendamento[]) ?? [];
+    clientes = (clientesRaw as Cliente[]) ?? [];
+    funcionarios = (funcionariosRaw as Funcionario[]) ?? [];
+    servicos = (servicosRaw as Servico[]) ?? [];
+  }
 
   return (
     <AgendamentosClient

@@ -97,11 +97,26 @@ export async function updateServico(
   }
 
   try {
+    const barbeariaId = await getBarbeariaId();
     const supabase = createClient();
+
+    // Verifica ownership
+    const { data: existing } = await supabase
+      .from("servicos")
+      .select("id")
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .maybeSingle();
+
+    if (!existing) {
+      return { success: false, error: "Serviço não encontrado ou sem permissão." };
+    }
+
     const { error } = await supabase
       .from("servicos")
       .update(parsed.data)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId);
 
     if (error) return { success: false, error: error.message };
 
@@ -124,8 +139,26 @@ export async function deleteServico(id: string): Promise<ActionResult> {
   }
 
   try {
+    const barbeariaId = await getBarbeariaId();
     const supabase = createClient();
-    const { error } = await supabase.from("servicos").delete().eq("id", id);
+
+    // Verifica ownership
+    const { data: existing } = await supabase
+      .from("servicos")
+      .select("id")
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .maybeSingle();
+
+    if (!existing) {
+      return { success: false, error: "Serviço não encontrado ou sem permissão." };
+    }
+
+    const { error } = await supabase
+      .from("servicos")
+      .delete()
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId);
 
     if (error) return { success: false, error: error.message };
 

@@ -33,6 +33,18 @@ export type Servico = {
   created_at: string;
 };
 
+export type Usuario = {
+  id: string;
+  barbearia_id: string;
+  auth_user_id: string | null;
+  nome: string;
+  email: string;
+  telefone: string | null;
+  perfil: "admin" | "staff";
+  ativo: boolean;
+  created_at: string;
+};
+
 export type Agendamento = {
   id: string;
   barbearia_id: string;

@@ -1,4 +1,4 @@
-import { format, addDays, subDays, startOfDay } from "date-fns";
+import { format, addDays, subDays, startOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { createClient } from "@/lib/supabase/server";
@@ -8,17 +8,30 @@ import { AgendamentosClient } from "@/components/agendamentos/agendamentos-clien
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams: { data?: string };
+  searchParams: Promise<{ data?: string }> | { data?: string };
 }
 
 export default async function AgendamentosPage({ searchParams }: PageProps) {
   const supabase = createClient();
 
-  // Parse da data (ou hoje)
-  const dataParam = searchParams.data;
-  const dataSelecionada = dataParam
-    ? startOfDay(new Date(dataParam + "T00:00:00"))
-    : startOfDay(new Date());
+  // Unwrap searchParams (compatível com Next.js 14/15)
+  const params = await Promise.resolve(searchParams);
+
+  // Parse da data de forma determinística (evita problemas de UTC no servidor)
+  const dataParam = params.data;
+  const hoje = startOfDay(new Date());
+  let dataSelecionada: Date = hoje;
+
+  if (dataParam) {
+    // Parse YYYY-MM-DD como data local sem UTC shift
+    const [ano, mes, dia] = dataParam.split("-").map(Number);
+    if (!isNaN(ano) && !isNaN(mes) && !isNaN(dia)) {
+      dataSelecionada = new Date(ano, mes - 1, dia, 0, 0, 0, 0);
+    }
+  }
+
+  // Garante que estamos no início do dia
+  dataSelecionada = startOfDay(dataSelecionada);
 
   const inicioDia = new Date(dataSelecionada);
   inicioDia.setHours(0, 0, 0, 0);
@@ -30,13 +43,34 @@ export default async function AgendamentosPage({ searchParams }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: barbearia } = await supabase
-    .from("barbearias")
-    .select("id")
-    .eq("user_id", user!.id)
-    .maybeSingle();
+  let barbeariaId: string | undefined;
 
-  const barbeariaId = barbearia?.id;
+  if (user) {
+    // 1. Novo modelo (usuarios)
+    try {
+      const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("barbearia_id")
+        .eq("auth_user_id", user.id)
+        .eq("ativo", true)
+        .maybeSingle();
+      if (usuario?.barbearia_id) {
+        barbeariaId = usuario.barbearia_id;
+      }
+    } catch {
+      /* tabela pode não existir */
+    }
+
+    // 2. Fallback legacy
+    if (!barbeariaId) {
+      const { data: barbearia } = await supabase
+        .from("barbearias")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      barbeariaId = barbearia?.id;
+    }
+  }
 
   let agendamentos: Agendamento[] = [];
   let clientes: Cliente[] = [];
@@ -81,6 +115,8 @@ export default async function AgendamentosPage({ searchParams }: PageProps) {
     servicos = (servicosRaw as Servico[]) ?? [];
   }
 
+  const hojeServer = format(new Date(), "yyyy-MM-dd");
+
   return (
     <AgendamentosClient
       agendamentos={agendamentos}
@@ -88,6 +124,7 @@ export default async function AgendamentosPage({ searchParams }: PageProps) {
       funcionarios={funcionarios}
       servicos={servicos}
       dataSelecionada={dataSelecionada}
+      hojeServer={hojeServer}
     />
   );
 }

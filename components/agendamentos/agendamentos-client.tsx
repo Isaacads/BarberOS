@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { format, addDays, subDays } from "date-fns";
+import { useState, useMemo, useEffect } from "react";
+import { format, addDays, subDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, Filter } from "lucide-react";
 
@@ -24,6 +24,7 @@ interface AgendamentosClientProps {
   funcionarios: Funcionario[];
   servicos: Servico[];
   dataSelecionada: Date;
+  hojeServer: string;
 }
 
 export function AgendamentosClient({
@@ -32,20 +33,32 @@ export function AgendamentosClient({
   funcionarios,
   servicos,
   dataSelecionada,
+  hojeServer,
 }: AgendamentosClientProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Agendamento | null>(null);
   const [filtroFuncionario, setFiltroFuncionario] = useState<string>("todos");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [ Mounted, setMounted ] = useState(false);
 
-  const dataFormatada = format(dataSelecionada, "dd 'de' MMMM", {
+  // Garante comparação de hoje no client (timezone do usuário)
+  const hojeClient = useMemo(() => {
+    const d = new Date();
+    return format(d, "yyyy-MM-dd");
+  }, []);
+
+  // Usa data do client se disponível (server envia dataSelecionada)
+  const dataEfetiva = dataSelecionada;
+
+  const dataFormatada = format(dataEfetiva, "dd 'de' MMMM", {
     locale: ptBR,
   });
-  const dataIso = format(dataSelecionada, "yyyy-MM-dd");
+  const dataIso = format(dataEfetiva, "yyyy-MM-dd");
 
-  const anterior = format(subDays(dataSelecionada, 1), "yyyy-MM-dd");
-  const hoje = format(new Date(), "yyyy-MM-dd");
-  const proximo = format(addDays(dataSelecionada, 1), "yyyy-MM-dd");
+  const anterior = format(subDays(dataEfetiva, 1), "yyyy-MM-dd");
+  // Usa o hoje do browser, não do servidor, para o link "Hoje"
+  const hoje = hojeClient;
+  const proximo = format(addDays(dataEfetiva, 1), "yyyy-MM-dd");
 
   const agendamentosFiltrados = useMemo(() => {
     return agendamentos.filter((a) => {
@@ -139,7 +152,7 @@ export function AgendamentosClient({
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
             <p className="text-lg font-medium">Nenhum agendamento</p>
             <p className="text-sm text-muted-foreground">
-              Não há agendamentos para este dia com os filtros selecionados.
+              Não há agendamentos para {dataFormatada} com os filtros selecionados.
             </p>
             <Button onClick={handleNew} className="mt-4 gap-2">
               <Plus className="h-4 w-4" />

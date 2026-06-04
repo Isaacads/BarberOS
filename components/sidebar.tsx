@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -43,6 +44,7 @@ const adminOnlyLinks = [
 
 interface SidebarProps {
   nomeBarbearia: string;
+  logoUrl: string | null;
   userEmail: string;
   userNome: string;
   userPerfil: "admin" | "staff";
@@ -144,8 +146,53 @@ function UserInfo({
   );
 }
 
+function BrandHeader({
+  nomeBarbearia,
+  logoUrl,
+}: {
+  nomeBarbearia: string;
+  logoUrl: string | null;
+}) {
+  if (logoUrl) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+          <Image
+            src={logoUrl}
+            alt={nomeBarbearia}
+            fill
+            className="object-cover"
+            sizes="32px"
+          />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate" title={nomeBarbearia}>
+            {nomeBarbearia}
+          </p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+            BarberOS
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="text-xl font-bold tracking-tight">✂️ BarberOS</div>
+      <p
+        className="truncate text-sm text-muted-foreground"
+        title={nomeBarbearia}
+      >
+        {nomeBarbearia}
+      </p>
+    </div>
+  );
+}
+
 export function Sidebar({
   nomeBarbearia,
+  logoUrl,
   userEmail,
   userNome,
   userPerfil,
@@ -170,13 +217,7 @@ export function Sidebar({
       {/* Desktop sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-r lg:bg-card">
         <div className="flex flex-col gap-1 border-b px-6 py-5">
-          <div className="text-xl font-bold tracking-tight">✂️ BarberOS</div>
-          <p
-            className="truncate text-sm text-muted-foreground"
-            title={nomeBarbearia}
-          >
-            {nomeBarbearia}
-          </p>
+          <BrandHeader nomeBarbearia={nomeBarbearia} logoUrl={logoUrl} />
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
@@ -218,7 +259,22 @@ export function Sidebar({
               <SheetContent side="left" className="w-64 p-0">
                 <SheetHeader className="border-b px-6 py-5 text-left">
                   <SheetTitle className="text-xl font-bold tracking-tight">
-                    ✂️ BarberOS
+                    {logoUrl ? (
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg">
+                          <Image
+                            src={logoUrl}
+                            alt={nomeBarbearia}
+                            fill
+                            className="object-cover"
+                            sizes="28px"
+                          />
+                        </div>
+                        <span className="text-sm font-semibold">{nomeBarbearia}</span>
+                      </div>
+                    ) : (
+                      <span className="flex items-center gap-2">✂️ BarberOS</span>
+                    )}
                   </SheetTitle>
                   <p className="truncate text-sm text-muted-foreground">
                     {nomeBarbearia}
@@ -255,7 +311,7 @@ export function Sidebar({
                 </div>
               </SheetContent>
             </Sheet>
-            <span className="font-semibold">BarberOS</span>
+            <span className="font-semibold text-sm">BarberOS</span>
           </div>
         </header>
 

@@ -5,9 +5,10 @@ function getEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
   if (!url || !key) {
-    throw new Error(
-      "Supabase URL e/ou Anon Key não configurados. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
+    const msg =
+      "[Supabase] NEXT_PUBLIC_SUPABASE_URL e/ou NEXT_PUBLIC_SUPABASE_ANON_KEY não configuradas.";
+    console.error(msg);
+    throw new Error(msg);
   }
   return { url, key };
 }
